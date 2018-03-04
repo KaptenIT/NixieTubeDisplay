@@ -4,6 +4,8 @@ extern crate sys_info;
 extern crate nvapi;
 extern crate nvapi_sys;
 
+extern crate chrono;
+
 use nvapi_sys::nvapi::NvAPI_Initialize;
 use nvapi_sys::gpu::NvAPI_EnumPhysicalGPUs;
 use nvapi_sys::handles::NvPhysicalGpuHandle;
@@ -37,7 +39,7 @@ pub fn get_gpus() -> Vec<NvPhysicalGpuHandle> {
     (0..gpu_count).map(|i| gpus[i as usize]).collect()
 }
 
-pub fn get_gpu_temp(gpu: &NvPhysicalGpuHandle) -> i32 {
+pub fn gpu_temp(gpu: &NvPhysicalGpuHandle) -> i32 {
     use nvapi_sys::gpu::thermal::{
         NV_GPU_THERMAL_SETTINGS,
         NV_GPU_THERMAL_SETTINGS_VER
@@ -57,7 +59,7 @@ pub fn get_gpu_temp(gpu: &NvPhysicalGpuHandle) -> i32 {
     info.sensor[0 as usize].currentTemp
 }
 
-pub fn get_gpu_usage(gpu: &NvPhysicalGpuHandle) -> i32 {
+pub fn gpu_usage(gpu: &NvPhysicalGpuHandle) -> i32 {
     use nvapi_sys::gpu::pstate::{
         NV_GPU_DYNAMIC_PSTATES_INFO_EX,
         NV_GPU_DYNAMIC_PSTATES_INFO_EX_VER,
@@ -79,7 +81,7 @@ pub fn get_gpu_usage(gpu: &NvPhysicalGpuHandle) -> i32 {
     info.utilization[NVAPI_GPU_UTILIZATION_DOMAIN_GPU as usize].percentage as i32
 }
 
-pub fn get_cpu_usage() -> i32 {
+pub fn cpu_usage() -> i32 {
     if let Ok(load) = sys_info::loadavg(){
         (load.one * 100.0) as i32
     } else {
@@ -87,7 +89,15 @@ pub fn get_cpu_usage() -> i32 {
     }
 }
 
-pub fn get_ram_usage() -> i32 {
+pub fn ram_usage() -> i32 {
+    if let Ok(mem_info) = sys_info::mem_info() {
+        ((1024 * 100 * ram_usage_mb() as u64) / mem_info.total as u64) as i32
+    } else {
+        0
+    }
+}
+
+pub fn ram_usage_mb() -> i32 {
     if let Ok(mem_info) = sys_info::mem_info() {
         ((mem_info.total - mem_info.free) / 1024) as i32
     } else {
@@ -95,10 +105,46 @@ pub fn get_ram_usage() -> i32 {
     }
 }
 
-pub fn get_disk_usage() -> i32 {
+pub fn disk_usage() -> i32 {
+    if let Ok(mem_info) = sys_info::mem_info() {
+        ((1024 * 10 * disk_usage_mb() as u64) / mem_info.total as u64) as i32
+    } else {
+        0
+    }
+}
+
+pub fn disk_usage_mb() -> i32 {
     if let Ok(disk_info) = sys_info::disk_info() {
         ((disk_info.total - disk_info.free) / 1024) as i32
     } else {
         0
     }
+}
+
+pub fn time_clock() -> i32 {
+    let values: Vec<_> = chrono::Local::now().time()
+        .format("%H%M").to_string()
+        .chars().collect();
+
+    let mut res = 0;
+    let mut f = 1;
+    for value in values.iter().rev() {
+        res += f * (*value as u8 - '0' as u8) as i32;
+        f *= 10;
+    }
+    res
+}
+
+pub fn time_date() -> i32 {
+    let values: Vec<_> = chrono::Local::now()
+        .format("%y%m%d").to_string()
+        .chars().collect();
+
+    let mut res = 0;
+    let mut f = 1;
+    for value in values.iter().rev() {
+        res += f * (*value as u8 - '0' as u8) as i32;
+        f *= 10;
+    }
+    res
 }

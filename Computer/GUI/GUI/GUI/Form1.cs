@@ -45,10 +45,7 @@ namespace GUI
             {
                 ComBox.Items.Add(s);
             }
-            if (ComBox.Items.Count == 0)
-            {
-                ComBox.Items.Add("No COM-port Available");
-            }
+            ComBox.Items.Add("DebugPort");
 
             bool exists = System.IO.File.Exists(folderpath + "settings.conf");
             if (exists)
@@ -117,16 +114,14 @@ namespace GUI
 
         private void button1_Click(object sender, EventArgs e)
         {
-            reloadConfig = 1;
-
-            if (ComBox.SelectedItem != null && ComBox.SelectedItem.ToString() != "No COM-port Available" && Baud_box.SelectedItem != null)
+            if (ComBox.SelectedItem != null && Baud_box.SelectedItem != null)
             {
                 bool exists = System.IO.Directory.Exists(folderpath);
                 if (!exists)
                     System.IO.Directory.CreateDirectory(folderpath);
 
                 string text = "com_name " + ComBox.SelectedItem.ToString() + "\n" +
-                    "com_baud " + Baud_box.SelectedItem.ToString() + "\n" + "propeties ";
+                    "com_baud " + Baud_box.SelectedItem.ToString() + "\n" + "properties ";
                 foreach (Control c in Controls)
                 {
                     if (c is CheckBox)
@@ -139,6 +134,7 @@ namespace GUI
                     }
                 }
                 System.IO.File.WriteAllText(@folderpath + "settings.conf", text);
+                reloadConfig = 1;
             }
             else
             {
@@ -157,6 +153,8 @@ namespace GUI
             {
                 string[] result = elem.Split(new char[0]);
                 string name = result[0];
+                if (name.Length == 0)
+                    continue;
                 name += "_result";
                 if (!kamel.ContainsKey(name))
                     throw new System.ArgumentException("felaktig label");
@@ -204,17 +202,17 @@ namespace GUI
                         }
 
                     }
-                    catch (Exception e)
+                    catch (SocketException e)
                     {
-                        var try_again = MessageBox.Show("Retry?", "Failed to connecto to server!", MessageBoxButtons.YesNo);
+                        var try_again = MessageBox.Show("Failed to connecto to server with error:" + e.ToString() + "\n Retry?", "Failed to connecto to server!", MessageBoxButtons.YesNo);
                         if (try_again != DialogResult.Yes)
                             return;
                     }
 
                 }
-                catch (Exception e)
+                catch (SocketException e)
                 {
-                    var try_again = MessageBox.Show("Retry?", "Failed to connecto to server!", MessageBoxButtons.YesNo);
+                    var try_again = MessageBox.Show("Failed to connecto to server with error:" + e.ToString() + "\n Retry?", "Failed to connecto to server!", MessageBoxButtons.YesNo);
                     if (try_again != DialogResult.Yes)
                         return;
                 }
