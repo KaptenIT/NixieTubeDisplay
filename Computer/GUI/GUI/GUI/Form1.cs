@@ -22,7 +22,7 @@ namespace GUI
         string[] COM;
         string[] baud;
         string[] enabledData;
-        bool reloadConfig = false;
+        Int32 reloadConfig = 0;
         Dictionary<string, Label> kamel;
 
         public Form1()
@@ -72,6 +72,11 @@ namespace GUI
                 ComBox.SelectedItem = COM[1]; //
                 Baud_box.SelectedItem = baud[1];
             }
+
+            new System.Threading.Thread(() => {
+                System.Threading.Thread.CurrentThread.IsBackground = true;
+                this.HandleNetwork();
+            }).Start();
         }
 
         private void Ext_btn_Click(object sender, EventArgs e)
@@ -112,7 +117,7 @@ namespace GUI
 
         private void button1_Click(object sender, EventArgs e)
         {
-            reloadConfig = true;
+            reloadConfig = 1;
 
             if (ComBox.SelectedItem != null && ComBox.SelectedItem.ToString() != "No COM-port Available" && Baud_box.SelectedItem != null)
             {
@@ -163,50 +168,56 @@ namespace GUI
             }
 
         }
-        
+
         void HandleNetwork()
         {
             const int PORT = 12345;
 
             byte[] buffer = new byte[1024];
 
-            try
+            while (true)
             {
-                var ip = IPAddress.Loopback;
-                Socket socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                IPEndPoint server = new IPEndPoint(ip, PORT);
-
                 try
                 {
-                    socket.Connect(server);
+                    var ip = IPAddress.Loopback;
+                    Socket socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                    IPEndPoint server = new IPEndPoint(ip, PORT);
 
-                    Console.WriteLine("Connected to deamon");
-
-                    while (true)
+                    try
                     {
-                        bool reload_config = false;
-                        while (socket.Send(new byte[1] { reload_config ? (byte)1 : (byte)0 }) != 1)
+                        socket.Connect(server);
+
+                        Console.WriteLine("Connected to deamon");
+
+                        while (true)
                         {
-                            Console.WriteLine("Failed to send to server");
-                        };
+                            bool reload_config = System.Threading.Interlocked.CompareExchange(ref this.reloadConfig, 0, 1) == 1;//TODO: Check me!!!
+                            while (socket.Send(new byte[1] { reload_config ? (byte)1 : (byte)0 }) != 1)
+                            {
+                                Console.WriteLine("Failed to send to server");
+                            };
 
-                        int bytes_recieved = socket.Receive(buffer);
+                            int bytes_recieved = socket.Receive(buffer);
 
-                        string recieved_result = Encoding.ASCII.GetString(buffer, 0, bytes_recieved);
+                            string recieved_result = Encoding.ASCII.GetString(buffer, 0, bytes_recieved);
+                            DisplayData(recieved_result);
+                        }
 
-                        //call_stuff();
+                    }
+                    catch (Exception e)
+                    {
+                        var try_again = MessageBox.Show("Retry?", "Failed to connecto to server!", MessageBoxButtons.YesNo);
+                        if (try_again != DialogResult.Yes)
+                            return;
                     }
 
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e.ToString());
+                    var try_again = MessageBox.Show("Retry?", "Failed to connecto to server!", MessageBoxButtons.YesNo);
+                    if (try_again != DialogResult.Yes)
+                        return;
                 }
-
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
             }
         }
 
